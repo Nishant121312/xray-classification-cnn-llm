@@ -104,8 +104,5 @@ wheel==0.43.0
 wrapt==1.16.0
 yarl==1.9.4
 google-generativeai==0.4.0
-opencv-python==4.9.0.80
 opencv-python-headless==4.9.0.80
-numpy==1.26.4
-opencv-python-headless
 gdown
