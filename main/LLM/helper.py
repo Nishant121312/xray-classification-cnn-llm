@@ -1,18 +1,20 @@
 import os
-from dotenv import load_dotenv, find_dotenv
+import streamlit as st
 import google.generativeai as genai
 
-# Load environment variables dynamically
-env_path = find_dotenv()
-if not env_path:
-    raise FileNotFoundError("❌ .env file not found! Ensure it exists in 'C:\\xray-classification-cnn-llm'.")
+# Retrieve API key from Streamlit Secrets or .env (for local development)
+api_key = st.secrets.get("GOOGLE_GEMINI_API_KEY")
 
-load_dotenv(env_path)
+# Fallback to .env file when running locally
+if api_key is None:
+    from dotenv import load_dotenv
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
-# Retrieve API key
-api_key = os.getenv("GOOGLE_GEMINI_API_KEY")  # Matches your .env file
+# Raise an error if API key is still missing
 if not api_key:
-    raise ValueError("❌ API key not found! Ensure GOOGLE_GEMINI_API_KEY is set in the .env file.")
+    st.error("❌ API key not found! Add it to Streamlit Secrets or a .env file.")
+    st.stop()
 
 # Configure the Gemini API
 genai.configure(api_key=api_key)
@@ -23,10 +25,11 @@ MODEL_NAME = "gemini-1.5-pro-latest"
 # Initialize the Gemini model
 try:
     gemini_model = genai.GenerativeModel(MODEL_NAME)
-    print(f"✅ Using model: {MODEL_NAME}")
 except Exception as e:
-    raise ValueError(f"❌ Error initializing model '{MODEL_NAME}': {e}")
+    st.error(f"❌ Error initializing model '{MODEL_NAME}': {e}")
+    st.stop()
 
+# Define functions
 def generate_disease_summary(disease):
     """Generate a concise and medically accurate summary of a given disease."""
     if not disease:
@@ -39,10 +42,9 @@ def generate_disease_summary(disease):
 
     try:
         response = gemini_model.generate_content(prompt)
-        return response.text.strip()
+        return response.text.strip() if response and hasattr(response, "text") else "❌ Error: No response from API."
     except Exception as e:
-        print(f"⚠️ Error during disease summary generation: {e}")
-        return "❌ Error: Unable to generate disease summary."
+        return f"⚠️ Error: {e}"
 
 def generate_detailed_overview(disease, question):
     """Provide a comprehensive overview of a disease and answer a specific question."""
@@ -57,18 +59,19 @@ def generate_detailed_overview(disease, question):
 
     try:
         response = gemini_model.generate_content(prompt)
-        return response.text.strip()
+        return response.text.strip() if response and hasattr(response, "text") else "❌ Error: No response from API."
     except Exception as e:
-        print(f"⚠️ Error during detailed overview generation: {e}")
-        return "❌ Error: Unable to generate detailed overview."
+        return f"⚠️ Error: {e}"
 
-if __name__ == "__main__":
-    print("🩺 Welcome to the Medical Assistant powered by Gemini API! 🚀")
+# Streamlit UI
+st.title("🩺 Medical Assistant powered by Gemini API 🚀")
 
-    disease = input("Enter the disease name: ").strip()
-    print("\n🔍 Generating disease summary...")
-    print(generate_disease_summary(disease))
+disease = st.text_input("Enter the disease name:")
+if disease:
+    st.subheader("🔍 Disease Summary")
+    st.write(generate_disease_summary(disease))
 
-    question = input("\n❓ Enter a specific question about the disease: ").strip()
-    print("\n📝 Generating detailed overview...")
-    print(generate_detailed_overview(disease, question))
+question = st.text_input("❓ Ask a specific question about the disease:")
+if disease and question:
+    st.subheader("📝 Detailed Overview")
+    st.write(generate_detailed_overview(disease, question))
